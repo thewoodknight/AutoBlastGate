@@ -1,6 +1,6 @@
 substitutions:
   name: twk-blastgate-brainbox
-  friendly_name: TWK Blast Gate 
+  friendly_name: TWK Blast Gate Blue
 
 esphome:
   name: ${name}
@@ -31,16 +31,32 @@ globals:
     initial_value: '0'
 
 binary_sensor:
+
+  # Limit switch for "gate is open". This corrusponds with D8
   - platform: gpio
-    pin: GPIO15
+    pin: 
+      number: GPIO15
+      mode:
+        input: true
+
     id: limit_open
 
+# Limit switch for "gate is closed". This corrusponds with D0
+# This is a special pin, the only one on the ESP8266/NodeMCU that can be "pulled down"
   - platform: gpio
-    pin: GPIO13
+    pin: 
+      number: GPIO16
+      mode: 
+        input: true
+        pulldown: True
     id: limit_closed
 
 
+
 script:
+
+  # Open the gate! 
+  # start opening at 100% speed, then go until the limit_open switch is triggered
   - id: script_open_gate
     then:
       - output.turn_on: direction_pin
@@ -59,6 +75,8 @@ script:
           id(gateopen) = 1;
           id(gate_control_oc).publish_state(true);
     
+  # Close the gate! 
+  # start closing at 100% speed, then go until the limit_closed switch is triggered
   - id: script_close_gate
     then:
       - output.turn_off: direction_pin
@@ -100,8 +118,6 @@ switch:
       - globals.set:
           id: gateopen
           value: '0'
-
-
 
 # Enable logging
 logger:
