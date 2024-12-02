@@ -25,6 +25,21 @@ output:
   pin: GPIO5
   id: speed_pin
 
+globals:
+  - id: gateopen
+    type: int
+    initial_value: '0'
+
+binary_sensor:
+  - platform: gpio
+    pin: GPIO15
+    id: limit_open
+
+  - platform: gpio
+    pin: GPIO13
+    id: limit_closed
+
+
 script:
   - id: script_open_gate
     then:
@@ -40,6 +55,9 @@ script:
                 return false;
               return true; 
       - output.turn_off: speed_pin
+      - lambda : |-
+          id(gateopen) = 1;
+          id(gate_control_oc).publish_state(true);
     
   - id: script_close_gate
     then:
@@ -47,16 +65,17 @@ script:
       - output.set_level:
           id: speed_pin
           level: 100%
-      - delay: 1s
+      - wait_until:
+          condition:
+            # check if the gate is closed, if so, turn off
+            lambda : |-
+              if (id(limit_closed).state == 0)
+                return false;
+              return true; 
       - output.turn_off: speed_pin
-
-
-# Enable logging
-logger:
-globals:
-  - id: gateopen
-    type: int
-    initial_value: "0"
+      - lambda : |-
+          id(gateopen) = 0;
+          id(gate_control_oc).publish_state(false);
 
 switch:
   - platform: template
@@ -64,9 +83,11 @@ switch:
     id: gate_control_oc
     restore_mode: DISABLED
     lambda: |-
-      if (id(gateopen) == 1)
+      if (id(gateopen) == 1) {
         return true;
-      return false;
+      } else { 
+        return false;
+      }
 
     turn_on_action: 
       - script.execute: script_open_gate
@@ -80,10 +101,10 @@ switch:
           id: gateopen
           value: '0'
 
-binary_sensor:
-  - platform: gpio
-    pin: GPIO15
-    id: limit_open
+
+
+# Enable logging
+logger:
 
 # Enable Home Assistant API
 api:
